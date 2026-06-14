@@ -261,20 +261,25 @@
             document.getElementById('status-txt').innerText = "🔄 กำลังตรวจสอบสภาพพืช...";
 
             const formData = new FormData();
-            formData.append('file', file); // แก้ไขคีย์ส่งไฟล์ให้ตรงกับ Backend (app.py)
+            formData.append('image', file); // 🟢 แก้เป็น 'image' ตรงนี้ให้ตรงกับ app.py แล้วครับ
 
             try {
-                const res = await fetch('/predict', { method: 'POST', body: formData }); // คุมเส้นทางพาร์ทให้ตรง /predict
+                const res = await fetch('/api/predict', { method: 'POST', body: formData }); // 🟢 แก้เป็น '/api/predict' แล้วครับ
                 const result = await res.json();
-                if(result.success) {
-                    // ปรับแต่งการจำลองการเปลี่ยนเกจวัดให้ดูสมจริงขึ้นเมื่อตรวจโรค
-                    document.getElementById('health-txt').innerText = "85 %";
-                    document.getElementById('health-bar').style.width = "85%";
-                    document.getElementById('water-txt').innerText = "62 %";
-                    document.getElementById('water-bar').style.width = "62%";
-                    document.getElementById('status-txt').innerText = "📋 ผลตรวจ: " + result.prediction;
-                } else { document.getElementById('status-txt').innerText = "❌ ตรวจสอบล้มเหลว"; }
-            } catch { document.getElementById('status-txt').innerText = "❌ ไม่สามารถติดต่อเซิร์ฟเวอร์กลางได้"; }
+                
+                if(result.status === 'success') {
+                    // 🟢 ดึงข้อมูลตัวเลขและสถานะจากหลังบ้าน (app.py) มาแสดงผลจริงๆ
+                    document.getElementById('health-txt').innerText = result.health_rate + " %";
+                    document.getElementById('health-bar').style.width = result.health_rate + "%";
+                    document.getElementById('water-txt').innerText = result.water_level + " %";
+                    document.getElementById('water-bar').style.width = result.water_level + "%";
+                    document.getElementById('status-txt').innerText = "📋 " + result.plant_status;
+                } else { 
+                    document.getElementById('status-txt').innerText = "❌ ตรวจสอบล้มเหลว"; 
+                }
+            } catch { 
+                document.getElementById('status-txt').innerText = "❌ ไม่สามารถติดต่อเซิร์ฟเวอร์กลางได้"; 
+            }
         }
 
         window.onload = loadCharts;

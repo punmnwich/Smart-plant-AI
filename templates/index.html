@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SmartPlant - แอปพลิเคชันติดตามสุขภาพพืช</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ลบแถบสกอล์บาร์เพื่อให้ฟีลแอปพลิเคชันมือถือ */
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        .app-container {
+            max-width: 480px; /* บังคับสัดส่วนให้เหมือนหน้าจอมือถือตลอดเวลา */
+        }
+        #camera-video, #camera-canvas {
+            object-fit: cover;
+            width: 100%;
+            height: 240px;
+            border-radius: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex justify-center items-stretch font-sans select-none">
+
+    <div class="app-container w-full bg-slate-50 flex flex-col min-h-screen shadow-2xl relative border-x border-slate-200">
+        
+        <header class="bg-white p-4 pt-5 pb-4 border-b border-slate-100 shadow-xs sticky top-0 z-50">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl bg-emerald-500 text-white p-1.5 rounded-xl shadow-xs">🌱</span>
+                    <div>
+                        <h1 class="text-lg font-bold text-slate-900 tracking-tight leading-tight">SmartPlant</h1>
+                        <p class="text-[10px] text-emerald-600 font-medium flex items-center gap-1">● เชื่อมต่อฟาร์มแล้ว</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <h3 id="location-text" class="text-base font-bold text-slate-800">กำลังค้นหาพิกัด...</h3>
+                    <p class="text-[10px] text-slate-400">อัปเดตเรียลไทม์</p>
+                </div>
+            </div>
+            
+            <div class="bg-gradient-to-r from-sky-400 to-blue-500 rounded-xl p-3 text-white flex justify-between items-center shadow-xs">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🌤️</span>
+                    <div>
+                        <p class="text-[11px] text-sky-100 leading-tight">พยากรณ์อากาศวันนี้</p>
+                        <p id="weather-desc" class="text-xs font-semibold leading-tight">มีเมฆบางส่วน (ฝนตก 20%)</p>
+                    </div>
+                </div>
+                <span id="weather-temp" class="text-lg font-bold">32°C</span>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-24 space-y-4">
+            
+            <section id="page-home" class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ความแข็งแรงพืช</p>
+                        <h3 class="text-2xl font-bold text-emerald-600 mt-1" id="health-txt">-- %</h3>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div id="health-bar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ความชื้นใบ (จำลอง)</p>
+                        <h3 class="text-2xl font-bold text-sky-600 mt-1" id="water-txt">-- %</h3>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                            <div id="water-bar" class="bg-sky-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs text-center">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">สถานะแปลงล่าสุด</p>
+                    <h3 class="text-md font-bold text-amber-600 bg-amber-50 py-2 rounded-lg border border-amber-100/70" id="status-txt">
+                        ⚠️ รอการสแกนตรวจสภาพพืช
+                    </h3>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-100 shadow-xs p-4 flex flex-col items-center">
+                    <p class="text-xs font-semibold text-slate-700 w-full mb-2">🖼️ ภาพถ่ายการสแกนล่าสุด</p>
+                    <div class="w-full bg-slate-50 border border-slate-200 rounded-lg min-h-[140px] flex items-center justify-center p-2">
+                        <img id="preview" class="max-h-36 rounded-md hidden shadow-xs" alt="Plant preview">
+                        <p id="preview-placeholder" class="text-xs text-slate-400">ยังไม่มีประวัติภาพถ่ายในรอบนี้</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="page-scan" class="space-y-4 hidden">
+                <div class="bg-white rounded-xl border border-slate-100 shadow-xs p-4">
+                    <h2 class="text-sm font-bold text-slate-800 mb-3">📸 กล้องวิเคราะห์ความชื้นและโรคพืช</h2>
+                    <div class="bg-slate-900 rounded-xl relative overflow-hidden min-h-[240px] flex items-center justify-center">
+                        <video id="camera-video" class="hidden" autoplay playsinline></video>
+                        <canvas id="camera-canvas" class="hidden" width="224" height="224"></canvas>
+                        <p id="camera-placeholder" class="text-xs text-slate-400 px-4 text-center">กดปุ่มเริ่มทำงานกล้องเพื่อใช้งาน Live Scan</p>
+                    </div>
+                    
+                    <div class="mt-4 space-y-2">
+                        <button id="start-camera-btn" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl text-xs font-bold transition shadow-xs">
+                            เปิดใช้งานกล้องสแกน
+                        </button>
+                        <button id="capture-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold transition shadow-xs hidden animate-bounce">
+                            📸 ถ่ายรูปและส่งตรวจสอบ
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-100 shadow-xs p-4 text-center cursor-pointer" onclick="document.getElementById('img-input').click()">
+                    <p class="text-xs font-bold text-slate-700">📂 หรือ เลือกรูปภาพเก่าจากคลังมือถือ</p>
+                    <input type="file" id="img-input" accept="image/*" class="hidden" onchange="previewAndUpload(event)">
+                </div>
+            </section>
+
+            <section id="page-stats" class="space-y-4 hidden">
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
+                    <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">📈 สถิติความชื้นใบพืช 7 วันล่าสุด</h2>
+                    <div class="h-44"><canvas id="lineChart"></canvas></div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
+                    <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">📊 สัดส่วนประวัติสุขภาพภาพรวม</h2>
+                    <div class="h-44 flex justify-center"><canvas id="pieChart"></canvas></div>
+                </div>
+            </section>
+
+        </div>
+
+        <nav class="bg-white border-t border-slate-200 h-16 absolute bottom-0 left-0 right-0 flex justify-around items-center px-2 shadow-lg z-50">
+            <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-0.5 text-emerald-600 transition-colors duration-200">
+                <span class="text-xl">🏡</span>
+                <span class="text-[10px] font-bold">หน้าหลัก</span>
+            </button>
+            <button onclick="switchTab('scan')" id="nav-scan" class="flex flex-col items-center gap-0.5 text-slate-400 transition-colors duration-200">
+                <span class="text-xl">📸</span>
+                <span class="text-[10px] font-bold">กล้องสแกน</span>
+            </button>
+            <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center gap-0.5 text-slate-400 transition-colors duration-200">
+                <span class="text-xl">📊</span>
+                <span class="text-[10px] font-bold">สถิติสะสม</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <script>
+        let lineChart, pieChart;
+
+        // --- 🧭 ระบบสลับหน้าแท็บ (Tab Switcher) ---
+        function switchTab(tabName) {
+            document.getElementById('page-home').classList.add('hidden');
+            document.getElementById('page-scan').classList.add('hidden');
+            document.getElementById('page-stats').classList.add('hidden');
+            
+            document.getElementById('nav-home').className = "flex flex-col items-center gap-0.5 text-slate-400";
+            document.getElementById('nav-scan').className = "flex flex-col items-center gap-0.5 text-slate-400";
+            document.getElementById('nav-stats').className = "flex flex-col items-center gap-0.5 text-slate-400";
+
+            if(tabName === 'home') {
+                document.getElementById('page-home').classList.remove('hidden');
+                document.getElementById('nav-home').className = "flex flex-col items-center gap-0.5 text-emerald-600";
+            } else if(tabName === 'scan') {
+                document.getElementById('page-scan').classList.remove('hidden');
+                document.getElementById('nav-scan').className = "flex flex-col items-center gap-0.5 text-emerald-600";
+            } else if(tabName === 'stats') {
+                document.getElementById('page-stats').classList.remove('hidden');
+                document.getElementById('nav-stats').className = "flex flex-col items-center gap-0.5 text-emerald-600";
+                loadCharts();
+            }
+        }
+
+        // --- 📷 ระบบควบคุมกล้องสมาร์ทโฟน ---
+        const video = document.getElementById('camera-video');
+        const canvas = document.getElementById('camera-canvas');
+        const startCameraBtn = document.getElementById('start-camera-btn');
+        const captureBtn = document.getElementById('capture-btn');
+        const cameraPlaceholder = document.getElementById('camera-placeholder');
+        const previewImg = document.getElementById('preview');
+        const previewPlaceholder = document.getElementById('preview-placeholder');
+
+        let cameraStream = null;
+
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                video.srcObject = cameraStream;
+                video.classList.remove('hidden');
+                cameraPlaceholder.classList.add('hidden');
+                startCameraBtn.classList.add('hidden');
+                captureBtn.classList.remove('hidden');
+            } catch (err) {
+                alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง");
+            }
+        });
+
+        function stopCameraStream() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                video.classList.add('hidden');
+                cameraPlaceholder.classList.remove('hidden');
+                startCameraBtn.classList.remove('hidden');
+                captureBtn.classList.add('hidden');
+            }
+        }
+
+        captureBtn.addEventListener('click', () => {
+            if (!cameraStream) return;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            stopCameraStream();
+
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const file = new File([blob], "live_capture.jpg", { type: "image/jpeg" });
+                
+                const reader = new FileReader();
+                reader.onload = (e) => { previewImg.src = e.target.result; previewImg.classList.remove('hidden'); previewPlaceholder.classList.add('hidden'); };
+                reader.readAsDataURL(file);
+                
+                sendPhotoToBackend(file);
+            }, 'image/jpeg');
+        });
+
+        // --- 💾 ระบบดึงข้อมูลและเชื่อมเซิร์ฟเวอร์หลังบ้าน ---
+        async function loadCharts() {
+            try {
+                const res = await fetch('/api/dashboard_data');
+                const data = await res.json();
+                
+                const ctxLine = document.getElementById('lineChart').getContext('2d');
+                if(lineChart) lineChart.destroy();
+                lineChart = new Chart(ctxLine, { 
+                    type: 'line', 
+                    data: { labels: data.labels, datasets: [{ label: 'ความชื้น (%)', data: data.values, borderColor: '#0284c7', backgroundColor: 'rgba(14, 165, 233, 0.05)', tension: 0.2, fill: true, borderWidth: 2 }] }, 
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } 
+                });
+
+                const ctxPie = document.getElementById('pieChart').getContext('2d');
+                if(pieChart) pieChart.destroy();
+                pieChart = new Chart(ctxPie, { 
+                    type: 'pie', 
+                    data: { labels: Object.keys(data.distribution), datasets: [{ data: Object.values(data.distribution), backgroundColor: ['#10b981', '#f59e0b', '#ef4444'] }] }, 
+                    options: { responsive: true, maintainAspectRatio: false } 
+                });
+            } catch (err) { console.log("โหลดสถิติล้มเหลว"); }
+        }
+
+        function previewAndUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            stopCameraStream();
+            const reader = new FileReader();
+            reader.onload = (e) => { previewImg.src = e.target.result; previewImg.classList.remove('hidden'); previewPlaceholder.classList.add('hidden'); };
+            reader.readAsDataURL(file);
+            sendPhotoToBackend(file);
+        }
+
+        async function sendPhotoToBackend(file) {
+            switchTab('home');
+            document.getElementById('status-txt').innerText = "🔄 กำลังตรวจสอบสภาพพืช...";
+
+            const formData = new FormData();
+            formData.append('file', file); // แก้ไขคีย์ส่งไฟล์ให้ตรงกับ Backend (app.py)
+
+            try {
+                const res = await fetch('/predict', { method: 'POST', body: formData }); // คุมเส้นทางพาร์ทให้ตรง /predict
+                const result = await res.json();
+                if(result.success) {
+                    // ปรับแต่งการจำลองการเปลี่ยนเกจวัดให้ดูสมจริงขึ้นเมื่อตรวจโรค
+                    document.getElementById('health-txt').innerText = "85 %";
+                    document.getElementById('health-bar').style.width = "85%";
+                    document.getElementById('water-txt').innerText = "62 %";
+                    document.getElementById('water-bar').style.width = "62%";
+                    document.getElementById('status-txt').innerText = "📋 ผลตรวจ: " + result.prediction;
+                } else { document.getElementById('status-txt').innerText = "❌ ตรวจสอบล้มเหลว"; }
+            } catch { document.getElementById('status-txt').innerText = "❌ ไม่สามารถติดต่อเซิร์ฟเวอร์กลางได้"; }
+        }
+
+        window.onload = loadCharts;
+    </script>
+
+    <script>
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+
+                // 1. ดึงชื่อจังหวัดภาษาไทย
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&accept-language=th`)
+                .then(response => response.json())
+                .then(data => {
+                    let province = data.address.province || data.address.state || data.address.city || 'ไม่ทราบตำแหน่ง';
+                    province = province.replace('จังหวัด', '').trim();
+                    let locElement = document.getElementById('location-text');
+                    if(locElement) locElement.innerText = province;
+                })
+                .catch(error => {
+                    let locElement = document.getElementById('location-text');
+                    if(locElement) locElement.innerText = 'ไม่พบตำแหน่ง'; 
+                });
+
+                // 2. ดึงสภาพอากาศและอุณหภูมิเรียลไทม์ตามพิกัดจริง
+                fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
+                .then(response => response.json())
+                .then(weatherData => {
+                    let temp = Math.round(weatherData.current_weather.temperature);
+                    let weatherCode = weatherData.current_weather.weathercode;
+                    
+                    let desc = "มีเมฆบางส่วน";
+                    if (weatherCode == 0) desc = "ท้องฟ้าแจ่มใส";
+                    else if (weatherCode >= 1 && weatherCode <= 3) desc = "มีเมฆบางส่วน";
+                    else if (weatherCode >= 45 && weatherCode <= 48) desc = "มีหมอกลง";
+                    else if (weatherCode >= 51 && weatherCode <= 67) desc = "มีฝนตกโปรยปราย";
+                    else if (weatherCode >= 71 && weatherCode <= 82) desc = "ฝนตกหนัก/ฝนฟ้าคะนอง";
+
+                    let tempElement = document.getElementById('weather-temp');
+                    let descElement = document.getElementById('weather-desc');
+                    
+                    if(tempElement) tempElement.innerText = `${temp}°C`;
+                    if(descElement) descElement.innerText = desc;
+                })
+                .catch(err => {
+                    // ปล่อยผ่านหาก API ล้มเหลว
+                });
+
+            }, function(error) {
+                let locElement = document.getElementById('location-text');
+                if(locElement) locElement.innerText = 'ไม่เปิด GPS';
+            });
+        }
+    </script>
+</body>
+</html>

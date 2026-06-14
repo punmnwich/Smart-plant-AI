@@ -7,7 +7,7 @@ import os
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # 🔑 คีย์ระบบ LINE Developers (บอทไอดีคือ @048rcoii)
-LINE_ACCESS_TOKEN = "u0ZqVpX9b7m8VvY6zC1E+DkW4l3H5R0pM7Kx/Jb8N2fX3L5P9v1k0F2O4e5R6t7y8u9i0o1p2q3r4s5t6u7v8w9x0y1z2a3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p8q9r0s1t2u3v4w5x6y7z8u0ZqVpX9b7m8VvY6zC1E+"
+LINE_ACCESS_TOKEN = "XFIIe1DgW2vJNns4pYfPR7mBj8Xqos5Q4KWzTCCam4elq6hxmvBjlOgHKsULgWLTG/Bvypt1aDQdCo5Q9VGA9PAwMJIkRPEg2YGtLOiTvHUrLj7Scf6aIGdyYIaONPBT4Jl7/Q4vSEkPXP5WYJYX0gdB04t89/1O/w1cDnyilFU="
 
 def send_line_broadcast(text_message):
     url = "https://api.line.me/v2/bot/message/broadcast"

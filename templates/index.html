@@ -337,3 +337,74 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Teachable Machine Web App</title>
+    <!-- 1. ดึงไลบรารีของ TensorFlow.js และ Teachable Machine มาใช้งาน -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+    <h1>ระบบแยกแยะรูปภาพด้วย Teachable Machine</h1>
+    <button type="button" onclick="init()">เริ่มเปิดกล้อง</button>
+    
+    <!-- ส่วนสำหรับแสดงหน้าจอกล้องเว็บแคม -->
+    <div id="webcam-container"></div>
+    <!-- ส่วนสำหรับแสดงผลลัพธ์ที่โมเดลทายออกมารวมถึงเปอร์เซ็นต์ -->
+    <div id="label-container"></div>
+
+    <script type="text/javascript">
+        // 2. ⚠️ นำลิงก์ Teachable Machine ของคุณมาใส่ตรงนี้ (ต้องปิดท้ายด้วยเครื่องหมาย / เสมอ)
+        const URL = "https://teachablemachine.withgoogle.com/models/[...]/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        // ฟังก์ชันเริ่มต้นโหลดโมเดลและเปิดกล้อง
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            // โหลดโมเดลผ่านลิงก์ URL
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            // ตั้งค่าเว็บแคม (กว้าง 200, สูง 200, เปิดใช้งานกล้องหน้า)
+            const flip = true; 
+            webcam = new tmImage.Webcam(200, 200, flip); 
+            await webcam.setup(); 
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            // เตรียมพื้นที่แสดงผลตัวอักษร
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) { 
+                labelContainer.appendChild(document.createElement("div"));
+            }
+        }
+
+        async function loop() {
+            webcam.update(); // อัปเดตเฟรมภาพจากกล้อง
+            await predict(); // สั่งให้โมเดลทำนายภาพปัจจุบัน
+            window.requestAnimationFrame(loop);
+        }
+
+        // ฟังก์ชันทายผลและแสดงผลลัพธ์
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction =
+                    prediction[i].className + ": " + (prediction[i].probability * 100).toFixed(0) + "%";
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+
+                // 💡 [เสริม] คุณสามารถเขียนโค้ดเงื่อนไข (IF-ELSE) ต่อตรงนี้ได้เลย เช่น:
+                // if (prediction[i].className === "ใส่แมสก์" && prediction[i].probability > 0.8) {
+                //      console.log("ยินดีด้วย คุณใส่หน้ากากอนามัยเรียบร้อย!");
+                // }
+            }
+        }
+    </script>
+</body>
+</html>
